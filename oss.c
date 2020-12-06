@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
           exit(0);
         break;
 
-      case 'v';
+      case 'v':
         vflag = 1;
         break;
 
@@ -303,7 +303,10 @@ pcbType newPCB(shareClock sysClock, int simPID) {
   pcb.simPID = simPID;
   pcb.state = New;
 
-  pcb.resources = {rand() % 0, rand() % 0, rand() % 0, rand() % 0};
+  int i;
+  for (i=0; i<4; i++) {
+    pcb.resources[i] = rand() % 10;
+  }
 
   //start by simulating real time class, highest priority
   int weightPriority = rand() % 100 + 1;
@@ -321,5 +324,5 @@ resourceTable initResTable() {
 
 
 
-  return
+  return rt;
 }
