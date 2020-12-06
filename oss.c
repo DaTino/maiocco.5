@@ -33,6 +33,30 @@ typedef struct shareClock{
   int nano;
 }shareClock;
 
+enum procStates{New, Ready, Run, Blocked, Terminated};
+
+//need process control table definition
+//kk make pcb...gonna try implementing share clock struct instead of
+//straight up int pointers to shm
+typedef struct PCB {
+  shareClock totalCPUTime;
+  shareClock totalSystemTime;
+  shareClock timeUsedLastBurst;
+  enum procStates state;
+  int resources[4];
+  int simPID;
+  int priority;
+}pcbType;
+
+pcbType newPCB(shareClock sysClock, int simPID);
+
+typedef struct resourceTable {
+  int maxResources[4];
+  int procResources[18][4];
+}resourceTable;
+
+resourceTable initResTable();
+
 int main(int argc, char *argv[]) {
 
   //struct timespec tstart={0,0}, tend={0,0};
@@ -135,6 +159,8 @@ int main(int argc, char *argv[]) {
   *(shm+1) = 0;
   //this is the shared int
   *(shm+2) = 0;
+  //creating shared memory resource map... start with one process
+
 
   //Dear Dr. Hauschild- if you make it this far, listen to The 6th Gate by D-Devils and tell me what you think
   //anyways, Ima set up a  message queue below.
@@ -155,7 +181,7 @@ int main(int argc, char *argv[]) {
   // alarm for max time and ctrl-c
   signal(SIGALRM, interruptHandler);
   signal(SIGINT, interruptHandler);
-  alarm(2);
+  alarm(5);
 
   pid_t childpid = 0;
   int status = 0;
@@ -170,7 +196,7 @@ int main(int argc, char *argv[]) {
   }
 
   //main looperino right here!
-  while (total < 100 && *(shm+0) < maxSecs) {
+  while (total < 40 /*&& *(shm+0) < maxSecs*/) {
     if((childpid = fork()) < 0) {
       perror("./oss: ...it was a stillbirth.");
       if (msgctl(msqid, IPC_RMID, NULL) == -1) {
@@ -264,4 +290,36 @@ static void interruptHandler() {
   //eliminate any witnesses...
   kill(0, SIGKILL);
   exit(0);
+}
+
+pcbType newPCB(shareClock sysClock, int simPID) {
+  pcbType pcb;
+  pcb.totalCPUTime.secs = 0;
+  pcb.totalCPUTime.nano = 0;
+  pcb.totalSystemTime.secs = 0;
+  pcb.totalSystemTime.nano = 0;
+  pcb.timeUsedLastBurst.secs = 0;
+  pcb.timeUsedLastBurst.nano = 0;
+  pcb.simPID = simPID;
+  pcb.state = New;
+
+  pcb.resources = {rand() % 0, rand() % 0, rand() % 0, rand() % 0};
+
+  //start by simulating real time class, highest priority
+  int weightPriority = rand() % 100 + 1;
+  //I'll add the randorinos later, gator.
+  if (weightPriority < 20) {
+    pcb.priority = 0;
+  }
+  else pcb.priority = 1;
+
+  return pcb;
+}
+
+resourceTable initResTable() {
+  resourceTable rt;
+
+
+
+  return
 }
