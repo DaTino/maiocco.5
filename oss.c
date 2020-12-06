@@ -41,19 +41,25 @@ int main(int argc, char *argv[]) {
   int maxProc = 5;
   char* filename = "log.txt";
   int maxSecs = 20;
+  int vflag = 0;
 
   int optionIndex;
-  while ((optionIndex = getopt(argc, argv, "hc:l:t:")) != -1) {
+  while ((optionIndex = getopt(argc, argv, "hvc:l:t:")) != -1) {
     switch (optionIndex) {
       case 'h':
           printf("Welcome to the Valid Argument Usage Dimension\n");
           printf("- = - = - = - = - = - = - = - = - = - = - = - = -\n");
           printf("-h            : Display correct command line argument Usage\n");
+          printf("-v            : Verbose- displays program status output as program runs\n");
           printf("-c <int>      : Indicate the maximum total of child processes spawned. (Default 5)\n");
           printf("-l <filename> : Indicate the number of children allowed to exist in the system at the same time. (Default 2)\n");
           printf("-t <int>      : The time in seconds after which the process will terminate, even if it has not finished. (Default 20)\n");
           printf("Usage: ./oss [-h | -c x -l filename -t z]\n");
           exit(0);
+        break;
+
+      case 'v';
+        vflag = 1;
         break;
 
       case 'c':
@@ -98,7 +104,7 @@ int main(int argc, char *argv[]) {
 
     }
   }
-  printf("getopt test: -c: %d -l: %s -t: %d\n", maxProc, filename, maxSecs);
+  printf("getopt test: -v: %d -c: %d -l: %s -t: %d\n", vflag, maxProc, filename, maxSecs);
 
   //open log file for editing
   outfile = fopen(filename, "a+");
@@ -130,9 +136,6 @@ int main(int argc, char *argv[]) {
   //this is the shared int
   *(shm+2) = 0;
 
-  //NEXT TIME ON DRAGON BALL Z- GOKU SETS UP USER.C TO READ SHARED MEMORY.
-  //exec y00zer...
-
   //Dear Dr. Hauschild- if you make it this far, listen to The 6th Gate by D-Devils and tell me what you think
   //anyways, Ima set up a  message queue below.
 
@@ -154,17 +157,6 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, interruptHandler);
   alarm(2);
 
-  //so we want one child to deal with this,
-  //then we set up message queue
-  //this part evolves into Critsec at lvl 35. Gotta start grinding!
-
-  //Main loop w/ critical section parts:
-    //check if we should make child
-      //make child
-      //keep track of number of children made
-      //exec w/ child
-    //look for finished children or get update(?) for active children
-
   pid_t childpid = 0;
   int status = 0;
   int pid = 0;
@@ -178,7 +170,7 @@ int main(int argc, char *argv[]) {
   }
 
   //main looperino right here!
-  while (total < 100 && /*((int)tend.tv_sec - (int)tstart.tv_sec)*/ *(shm+0) < maxSecs) {
+  while (total < 100 && *(shm+0) < maxSecs) {
     if((childpid = fork()) < 0) {
       perror("./oss: ...it was a stillbirth.");
       if (msgctl(msqid, IPC_RMID, NULL) == -1) {
@@ -189,9 +181,6 @@ int main(int argc, char *argv[]) {
       exit(1);
     } else if (childpid == 0) {
       //local clock time stuff here
-      // double total_nsec = ((double)tend.tv_sec + 1.0e-9*tend.tv_nsec) - ((double)tstart.tv_sec + 1.0e-9*tstart.tv_nsec);
-      // double total_sec = floor(total_nsec/1e9);
-      // double nsec_part = fmod(total_nsec, 1e9);
       *(shm+1) += nsec;
       if (nsec > 1e9) {
         *(shm+0)+=nsec/1e9;
@@ -215,14 +204,10 @@ int main(int argc, char *argv[]) {
           fprintf(outfile, "oss: Child pid %d terminated at system clock time %d.%d\n", *(shm+2), *(shm+0), *(shm+1));
           proc_count--;
 	      }
-        // if (pid > 0) {
-        //   proc_count--;
-        // }
       } while(*(shm+2) == 0);
       *(shm+2) = 0;
     }
-	//printf("proc_count: %d\n", proc_count);
-  //clock_gettime(CLOCK_MONOTONIC, &tend);
+
  }
 
 
@@ -238,6 +223,8 @@ int main(int argc, char *argv[]) {
        perror("oss: msgctl failed to kill the queue");
        exit(1);
    }
+
+   fclose(outfile);
 
   printf("fin.\n");
   return 0;
