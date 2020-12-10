@@ -16,7 +16,9 @@ CS4760 Project 3
 #include <time.h>
 #include <math.h>
 #include <string.h>
+#include <stdbool.h>
 
+#define NUM_USER_PROCESSES 1
 
 FILE* outfile;
 
@@ -54,6 +56,16 @@ typedef struct resourceTable {
   int maxResources[4];
   int procResources[18][4];
 }resourceTable;
+
+typedef struct resourceDescriptor{
+  bool shared;
+  int resourceId;
+  bool inUse;
+  int currentOwner;
+  int request[1];
+  int allocated[1];
+  int released[1];
+}resourceDescriptor;
 
 resourceTable initResTable();
 
@@ -146,12 +158,12 @@ int main(int argc, char *argv[]) {
   //sizeof int for seconds and nanoseconds... dont need a struct for clock?
   //added size to hold shmPID
   if ((shmid = shmget(key, 3*sizeof(int), IPC_CREAT | 0666)) < 0) {
-    perror("oss: error created shared memory segment.");
+    perror("oss: error created shared clock memory segment.");
     exit(1);
   }
   //attach segment to dataspace...
   if ((shm = shmat(shmid, NULL, 0)) == (int*) -1) {
-    perror("oss: error attaching shared memory.");
+    perror("oss: error attaching shared clock memory.");
     exit(1);
   }
   //here we'll have to write to shared memory...
@@ -174,6 +186,20 @@ int main(int argc, char *argv[]) {
 
   if ((msqid = msgget(msgKey, 0666 | IPC_CREAT)) == -1) {
     perror("oss: error creating message queue.");
+    exit(1);
+  }
+
+  //resource descriptor...
+  resourceDescriptor *rdp;
+  int resDesID;
+  key_t resDesKey = 2112;
+  if ((resDesID = shmget(resDesKey, 20*sizeof(resourceDescriptor), IPC_CREAT | 0666)) < 0) {
+    perror("oss: error created shared resource descriptor memory segment.");
+    exit(1);
+  }
+  //attach segment to dataspace...
+  if ((rdp = shmat(resDesID, NULL, 0)) == (int*) -1) {
+    perror("oss: error attaching shared resource descriptor memory.");
     exit(1);
   }
 
